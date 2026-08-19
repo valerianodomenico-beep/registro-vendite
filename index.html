@@ -23,7 +23,7 @@
     /* Header e App */
     header { background: #722f37; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
     .header-brand { display: flex; align-items: center; gap: 12px; }
-    main { padding: 20px; max-width: 1250px; margin: auto; }
+    main { padding: 20px; max-width: 1280px; margin: auto; }
     
     .kpi-container { display: flex; gap: 15px; margin-bottom: 20px; }
     .kpi-card { background: white; padding: 15px; border-radius: 6px; flex: 1; border-left: 5px solid #722f37; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -41,7 +41,7 @@
     /* Barra Filtri e Intestazione Tabella */
     .table-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
     .filter-group { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; color: #444; }
-    .filter-group select { padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; font-weight: normal; }
+    .filter-group select { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; color: #722f37; background: white; cursor: pointer; }
     .btn-export { background: #1f7244; color: white; border: none; padding: 8px 14px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 
     /* Tabella */
@@ -51,9 +51,13 @@
     td { padding: 8px 10px; border-bottom: 1px solid #eee; border-right: 1px solid #f0f0f0; }
     tr:nth-child(even) { background-color: #fafafa; }
     
-    .btn-delete { background: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
-    .btn-edit { background: #2980b9; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 4px; }
-    .btn-move { background: #7f8c8d; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+    .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+    .btn-edit { background: #2980b9; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 4px; }
+    
+    /* Pulsanti Spostamento Visibili */
+    .move-btn-group { display: flex; gap: 4px; justify-content: center; }
+    .btn-move { background: #722f37; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: bold; transition: background 0.2s; }
+    .btn-move:hover { background: #52222b; }
 
     /* Modal Modifica */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
@@ -90,6 +94,15 @@
 
     let elencoVenditeTutti = [];
     let elencoVenditeFiltrati = [];
+
+    const NOMI_MESI = ["genn", "febbr", "mar", "apr", "magg", "giu", "lug", "ago", "sett", "ott", "nov", "dic"];
+
+    function formattaMeseItaliano(codiceMese) {
+      if (!codiceMese || codiceMese === 'ALL') return 'Tutti i mesi';
+      const [anno, meseStr] = codiceMese.split('-');
+      const indiceMese = parseInt(meseStr, 10) - 1;
+      return `${NOMI_MESI[indiceMese]} ${anno}`;
+    }
 
     onAuthStateChanged(auth, (user) => {
       const loginSec = document.getElementById('login-section');
@@ -128,7 +141,6 @@
           tipoPagamento: document.getElementById('sale-payment').value,
           bottiglie: Number(document.getElementById('sale-bottles').value),
           importo: Number(document.getElementById('sale-amount').value),
-          ordine: Date.now(),
           timestamp: serverTimestamp()
         });
         document.getElementById('sale-ref').value = "";
@@ -176,7 +188,7 @@
       mesiOrdinati.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
-        opt.innerText = m;
+        opt.innerText = formattaMeseItaliano(m);
         selectMese.appendChild(opt);
       });
 
@@ -204,9 +216,11 @@
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="text-align: center; width: 60px;">
-            <button class="btn-move btn-up" data-index="${index}">⬆️</button>
-            <button class="btn-move btn-down" data-index="${index}">⬇️</button>
+          <td style="text-align: center; width: 100px;">
+            <div class="move-btn-group">
+              <button class="btn-move btn-up" data-index="${index}">▲ Su</button>
+              <button class="btn-move btn-down" data-index="${index}">▼ Giù</button>
+            </div>
           </td>
           <td>${v.data || ''}</td>
           <td>${v.operatore || ''}</td>
@@ -215,8 +229,8 @@
           <td>${v.tipoPagamento || ''}</td>
           <td style="text-align: center;">${v.bottiglie || 0}</td>
           <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
-          <td style="text-align: center; width: 140px;">
-            <button class="btn-edit" data-id="${v.id}">✏️ Edit</button>
+          <td style="text-align: center; width: 150px;">
+            <button class="btn-edit" data-id="${v.id}">✏️ Modifica</button>
             <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
           </td>
         `;
@@ -228,39 +242,35 @@
       document.getElementById('tot-bottiglie').innerText = totBottiglie;
       document.getElementById('tot-operazioni').innerText = elencoVenditeFiltrati.length;
 
-      // Event Listeners Azioni
+      bindEventiTabella();
+    }
+
+    function bindEventiTabella() {
       document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.onclick = async (e) => {
           const idDoc = e.target.getAttribute('data-id');
           if (confirm("Sei sicuro di voler eliminare questa riga?")) {
             await deleteDoc(doc(db, "vendite", idDoc));
           }
-        });
+        };
       });
 
       document.querySelectorAll('.btn-edit').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const idDoc = e.target.getAttribute('data-id');
-          apriModalEdit(idDoc);
-        });
+        btn.onclick = (e) => {
+          apriModalEdit(e.target.getAttribute('data-id'));
+        };
       });
 
       document.querySelectorAll('.btn-up').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const idx = parseInt(e.target.getAttribute('data-index'));
-          spostaRiga(idx, -1);
-        });
+        btn.onclick = (e) => spostaRiga(parseInt(e.target.getAttribute('data-index')), -1);
       });
 
       document.querySelectorAll('.btn-down').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const idx = parseInt(e.target.getAttribute('data-index'));
-          spostaRiga(idx, 1);
-        });
+        btn.onclick = (e) => spostaRiga(parseInt(e.target.getAttribute('data-index')), 1);
       });
     }
 
-    // Spostamento Righe (Inversione Posizione Locale)
+    // Spostamento Righe
     function spostaRiga(index, direzione) {
       const nuovoIndex = index + direzione;
       if (nuovoIndex < 0 || nuovoIndex >= elencoVenditeFiltrati.length) return;
@@ -269,15 +279,16 @@
       elencoVenditeFiltrati[index] = elencoVenditeFiltrati[nuovoIndex];
       elencoVenditeFiltrati[nuovoIndex] = temp;
 
-      // Re-render rapido
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = '';
       elencoVenditeFiltrati.forEach((v, idx) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="text-align: center; width: 60px;">
-            <button class="btn-move btn-up" data-index="${idx}">⬆️</button>
-            <button class="btn-move btn-down" data-index="${idx}">⬇️</button>
+          <td style="text-align: center; width: 100px;">
+            <div class="move-btn-group">
+              <button class="btn-move btn-up" data-index="${idx}">▲ Su</button>
+              <button class="btn-move btn-down" data-index="${idx}">▼ Giù</button>
+            </div>
           </td>
           <td>${v.data || ''}</td>
           <td>${v.operatore || ''}</td>
@@ -286,41 +297,15 @@
           <td>${v.tipoPagamento || ''}</td>
           <td style="text-align: center;">${v.bottiglie || 0}</td>
           <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
-          <td style="text-align: center; width: 140px;">
-            <button class="btn-edit" data-id="${v.id}">✏️ Edit</button>
+          <td style="text-align: center; width: 150px;">
+            <button class="btn-edit" data-id="${v.id}">✏️ Modifica</button>
             <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
           </td>
         `;
         tbody.appendChild(tr);
       });
 
-      // Re-bind eventi spostamento/edit
-      renderTabellaEventBindings();
-    }
-
-    function renderTabellaEventBindings() {
-      document.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const idDoc = e.target.getAttribute('data-id');
-          if (confirm("Sei sicuro di voler eliminare questa riga?")) {
-            await deleteDoc(doc(db, "vendite", idDoc));
-          }
-        });
-      });
-
-      document.querySelectorAll('.btn-edit').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          apriModalEdit(e.target.getAttribute('data-id'));
-        });
-      });
-
-      document.querySelectorAll('.btn-up').forEach(btn => {
-        btn.addEventListener('click', (e) => spostaRiga(parseInt(e.target.getAttribute('data-index')), -1));
-      });
-
-      document.querySelectorAll('.btn-down').forEach(btn => {
-        btn.addEventListener('click', (e) => spostaRiga(parseInt(e.target.getAttribute('data-index')), 1));
-      });
+      bindEventiTabella();
     }
 
     // Modal Modifica
@@ -478,10 +463,10 @@
         </form>
       </div>
 
-      <!-- BARRA SUPERIORE TABELLA CON FILTRO E TASTO EXCEL -->
+      <!-- BARRA SUPERIORE TABELLA CON FILTRO MESE E TASTO EXCEL -->
       <div class="table-header-bar">
         <div class="filter-group">
-          <span>Elenco Vendite:</span>
+          <span>Seleziona Mese:</span>
           <select id="filter-month">
             <option value="ALL">Tutti i mesi</option>
           </select>
@@ -494,7 +479,7 @@
         <table>
           <thead>
             <tr>
-              <th style="text-align: center; width: 60px;">Pos.</th>
+              <th style="text-align: center; width: 100px;">Posizione</th>
               <th>Data</th>
               <th>Operatore</th>
               <th>Tipo Ricevuta</th>
@@ -502,7 +487,7 @@
               <th>Tipo Pagamento</th>
               <th style="text-align: center;">Bottiglie</th>
               <th style="text-align: right;">Importo Totale</th>
-              <th style="text-align: center; width: 140px;">Azione</th>
+              <th style="text-align: center; width: 150px;">Azione</th>
             </tr>
           </thead>
           <tbody id="table-body">
