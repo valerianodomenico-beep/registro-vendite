@@ -6,7 +6,7 @@
   <title>Gestione Vendite Shop Vino</title>
   
   <style>
-    * { box-sizing: border-box; font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif; }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f0f2f5; margin: 0; padding: 0; color: #333; }
     .hidden { display: none !important; }
     
@@ -23,7 +23,7 @@
     /* Header e App */
     header { background: #722f37; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
     .header-brand { display: flex; align-items: center; gap: 12px; }
-    main { padding: 20px; max-width: 1200px; margin: auto; }
+    main { padding: 20px; max-width: 1250px; margin: auto; }
     
     .kpi-container { display: flex; gap: 15px; margin-bottom: 20px; }
     .kpi-card { background: white; padding: 15px; border-radius: 6px; flex: 1; border-left: 5px solid #722f37; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -38,8 +38,10 @@
     .field input, .field select { width: 100%; padding: 6px 8px; border: 1px solid #aaa; border-radius: 3px; font-size: 13px; background: #fff; }
     .btn-add { background: #27ae60; color: white; border: none; padding: 7px 15px; font-weight: bold; border-radius: 3px; cursor: pointer; height: 31px; }
 
-    /* Intestazione Tabella & Pulsante Esporta */
-    .table-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    /* Barra Filtri e Intestazione Tabella */
+    .table-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+    .filter-group { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; color: #444; }
+    .filter-group select { padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; font-weight: normal; }
     .btn-export { background: #1f7244; color: white; border: none; padding: 8px 14px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 
     /* Tabella */
@@ -48,16 +50,29 @@
     th { background: #f4f6f7; color: #333; padding: 10px; border-bottom: 2px solid #ddd; border-right: 1px solid #e0e0e0; font-weight: bold; }
     td { padding: 8px 10px; border-bottom: 1px solid #eee; border-right: 1px solid #f0f0f0; }
     tr:nth-child(even) { background-color: #fafafa; }
+    
     .btn-delete { background: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+    .btn-edit { background: #2980b9; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 4px; }
+    .btn-move { background: #7f8c8d; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+
+    /* Modal Modifica */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-card { background: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .modal-card h3 { margin-top: 0; color: #722f37; }
+    .modal-grid { display: flex; flex-direction: column; gap: 10px; }
+    .modal-grid label { font-size: 12px; font-weight: bold; color: #555; }
+    .modal-grid input, .modal-grid select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .modal-actions { margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px; }
+    .btn-save { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-cancel { background: #95a5a6; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
   </style>
 
   <!-- SDK Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Configurazione Firebase personale
     const firebaseConfig = {
       apiKey: "AIzaSyCbNGUmM2nICS_D30b6XZ4WouFHr-AEItY",
       authDomain: "shop-39f14.firebaseapp.com",
@@ -73,7 +88,8 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    let elencoVendite = [];
+    let elencoVenditeTutti = [];
+    let elencoVenditeFiltrati = [];
 
     onAuthStateChanged(auth, (user) => {
       const loginSec = document.getElementById('login-section');
@@ -112,6 +128,7 @@
           tipoPagamento: document.getElementById('sale-payment').value,
           bottiglie: Number(document.getElementById('sale-bottles').value),
           importo: Number(document.getElementById('sale-amount').value),
+          ordine: Date.now(),
           timestamp: serverTimestamp()
         });
         document.getElementById('sale-ref').value = "";
@@ -124,70 +141,239 @@
 
     document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
 
-    // Carica dati in tabella e gestisce l'eliminazione
+    // Caricamento Dati
     function caricaDati() {
       const q = query(collection(db, "vendite"), orderBy("timestamp", "desc"));
       onSnapshot(q, (snapshot) => {
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
-        elencoVendite = [];
-        let totIncassato = 0;
-        let totBottiglie = 0;
-
+        elencoVenditeTutti = [];
         snapshot.forEach((docSnap) => {
           const v = docSnap.data();
-          const idDoc = docSnap.id;
-          elencoVendite.push(v);
-
-          totIncassato += v.importo || 0;
-          totBottiglie += v.bottiglie || 0;
-
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${v.data || ''}</td>
-            <td>${v.operatore || ''}</td>
-            <td>${v.tipoRicevuta || ''}</td>
-            <td>${v.numRiferimento || ''}</td>
-            <td>${v.tipoPagamento || ''}</td>
-            <td style="text-align: center;">${v.bottiglie || 0}</td>
-            <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
-            <td style="text-align: center;">
-              <button class="btn-delete" data-id="${idDoc}">🗑️ Elimina</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
+          v.id = docSnap.id;
+          elencoVenditeTutti.push(v);
         });
 
-        // Event listener per eliminare una riga
-        document.querySelectorAll('.btn-delete').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const idDoc = e.target.getAttribute('data-id');
-            if (confirm("Sei sicuro di voler eliminare questa riga?")) {
-              try {
-                await deleteDoc(doc(db, "vendite", idDoc));
-              } catch (err) {
-                alert("Errore durante l'eliminazione.");
-              }
-            }
-          });
-        });
-
-        document.getElementById('tot-incasso').innerText = `€ ${totIncassato.toFixed(2)}`;
-        document.getElementById('tot-bottiglie').innerText = totBottiglie;
-        document.getElementById('tot-operazioni').innerText = snapshot.size;
+        aggiornaFiltroMesi();
+        renderTabella();
       });
     }
 
-    // Esporta dati su File Excel (.CSV)
+    // Aggiorna Opzioni Mese
+    function aggiornaFiltroMesi() {
+      const selectMese = document.getElementById('filter-month');
+      const meseCorrenteSel = selectMese.value;
+      
+      const mesiSet = new Set();
+      elencoVenditeTutti.forEach(v => {
+        if (v.data) {
+          const meseAnno = v.data.substring(0, 7); // YYYY-MM
+          mesiSet.add(meseAnno);
+        }
+      });
+
+      const mesiOrdinati = Array.from(mesiSet).sort().reverse();
+      
+      selectMese.innerHTML = '<option value="ALL">Tutti i mesi</option>';
+      mesiOrdinati.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.innerText = m;
+        selectMese.appendChild(opt);
+      });
+
+      selectMese.value = meseCorrenteSel && (mesiSet.has(meseCorrenteSel) || meseCorrenteSel === 'ALL') ? meseCorrenteSel : 'ALL';
+    }
+
+    // Render Tabella
+    function renderTabella() {
+      const meseSelezionato = document.getElementById('filter-month').value;
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      if (meseSelezionato === 'ALL') {
+        elencoVenditeFiltrati = [...elencoVenditeTutti];
+      } else {
+        elencoVenditeFiltrati = elencoVenditeTutti.filter(v => v.data && v.data.startsWith(meseSelezionato));
+      }
+
+      let totIncassato = 0;
+      let totBottiglie = 0;
+
+      elencoVenditeFiltrati.forEach((v, index) => {
+        totIncassato += v.importo || 0;
+        totBottiglie += v.bottiglie || 0;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="text-align: center; width: 60px;">
+            <button class="btn-move btn-up" data-index="${index}">⬆️</button>
+            <button class="btn-move btn-down" data-index="${index}">⬇️</button>
+          </td>
+          <td>${v.data || ''}</td>
+          <td>${v.operatore || ''}</td>
+          <td>${v.tipoRicevuta || ''}</td>
+          <td>${v.numRiferimento || ''}</td>
+          <td>${v.tipoPagamento || ''}</td>
+          <td style="text-align: center;">${v.bottiglie || 0}</td>
+          <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
+          <td style="text-align: center; width: 140px;">
+            <button class="btn-edit" data-id="${v.id}">✏️ Edit</button>
+            <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // KPI Update
+      document.getElementById('tot-incasso').innerText = `€ ${totIncassato.toFixed(2)}`;
+      document.getElementById('tot-bottiglie').innerText = totBottiglie;
+      document.getElementById('tot-operazioni').innerText = elencoVenditeFiltrati.length;
+
+      // Event Listeners Azioni
+      document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const idDoc = e.target.getAttribute('data-id');
+          if (confirm("Sei sicuro di voler eliminare questa riga?")) {
+            await deleteDoc(doc(db, "vendite", idDoc));
+          }
+        });
+      });
+
+      document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idDoc = e.target.getAttribute('data-id');
+          apriModalEdit(idDoc);
+        });
+      });
+
+      document.querySelectorAll('.btn-up').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-index'));
+          spostaRiga(idx, -1);
+        });
+      });
+
+      document.querySelectorAll('.btn-down').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-index'));
+          spostaRiga(idx, 1);
+        });
+      });
+    }
+
+    // Spostamento Righe (Inversione Posizione Locale)
+    function spostaRiga(index, direzione) {
+      const nuovoIndex = index + direzione;
+      if (nuovoIndex < 0 || nuovoIndex >= elencoVenditeFiltrati.length) return;
+
+      const temp = elencoVenditeFiltrati[index];
+      elencoVenditeFiltrati[index] = elencoVenditeFiltrati[nuovoIndex];
+      elencoVenditeFiltrati[nuovoIndex] = temp;
+
+      // Re-render rapido
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+      elencoVenditeFiltrati.forEach((v, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="text-align: center; width: 60px;">
+            <button class="btn-move btn-up" data-index="${idx}">⬆️</button>
+            <button class="btn-move btn-down" data-index="${idx}">⬇️</button>
+          </td>
+          <td>${v.data || ''}</td>
+          <td>${v.operatore || ''}</td>
+          <td>${v.tipoRicevuta || ''}</td>
+          <td>${v.numRiferimento || ''}</td>
+          <td>${v.tipoPagamento || ''}</td>
+          <td style="text-align: center;">${v.bottiglie || 0}</td>
+          <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
+          <td style="text-align: center; width: 140px;">
+            <button class="btn-edit" data-id="${v.id}">✏️ Edit</button>
+            <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Re-bind eventi spostamento/edit
+      renderTabellaEventBindings();
+    }
+
+    function renderTabellaEventBindings() {
+      document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const idDoc = e.target.getAttribute('data-id');
+          if (confirm("Sei sicuro di voler eliminare questa riga?")) {
+            await deleteDoc(doc(db, "vendite", idDoc));
+          }
+        });
+      });
+
+      document.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          apriModalEdit(e.target.getAttribute('data-id'));
+        });
+      });
+
+      document.querySelectorAll('.btn-up').forEach(btn => {
+        btn.addEventListener('click', (e) => spostaRiga(parseInt(e.target.getAttribute('data-index')), -1));
+      });
+
+      document.querySelectorAll('.btn-down').forEach(btn => {
+        btn.addEventListener('click', (e) => spostaRiga(parseInt(e.target.getAttribute('data-index')), 1));
+      });
+    }
+
+    // Modal Modifica
+    function apriModalEdit(idDoc) {
+      const v = elencoVenditeTutti.find(item => item.id === idDoc);
+      if (!v) return;
+
+      document.getElementById('edit-id').value = v.id;
+      document.getElementById('edit-date').value = v.data || '';
+      document.getElementById('edit-operator').value = v.operatore || '';
+      document.getElementById('edit-receipt').value = v.tipoRicevuta || 'Ricevuta Fiscale';
+      document.getElementById('edit-ref').value = v.numRiferimento || '';
+      document.getElementById('edit-payment').value = v.tipoPagamento || 'Contanti';
+      document.getElementById('edit-bottles').value = v.bottiglie || 1;
+      document.getElementById('edit-amount').value = v.importo || 0;
+
+      document.getElementById('edit-modal').classList.remove('hidden');
+    }
+
+    document.getElementById('btn-cancel-edit').addEventListener('click', () => {
+      document.getElementById('edit-modal').classList.add('hidden');
+    });
+
+    document.getElementById('edit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const idDoc = document.getElementById('edit-id').value;
+      try {
+        await updateDoc(doc(db, "vendite", idDoc), {
+          data: document.getElementById('edit-date').value,
+          operatore: document.getElementById('edit-operator').value,
+          tipoRicevuta: document.getElementById('edit-receipt').value,
+          numRiferimento: document.getElementById('edit-ref').value,
+          tipoPagamento: document.getElementById('edit-payment').value,
+          bottiglie: Number(document.getElementById('edit-bottles').value),
+          importo: Number(document.getElementById('edit-amount').value)
+        });
+        document.getElementById('edit-modal').classList.add('hidden');
+      } catch (err) {
+        alert("Errore nell'aggiornamento della riga.");
+      }
+    });
+
+    document.getElementById('filter-month').addEventListener('change', renderTabella);
+
+    // Esportazione CSV
     document.getElementById('export-btn').addEventListener('click', () => {
-      if (elencoVendite.length === 0) {
+      if (elencoVenditeFiltrati.length === 0) {
         alert("Nessun dato presente da esportare.");
         return;
       }
 
       let csvContent = "\uFEFFData;Operatore;Tipo Ricevuta;N. Riferimento;Tipo Pagamento;Bottiglie;Importo (€)\n";
-
-      elencoVendite.forEach(v => {
+      elencoVenditeFiltrati.forEach(v => {
         const importoFormattato = (v.importo || 0).toString().replace('.', ',');
         csvContent += `"${v.data || ''}";"${v.operatore || ''}";"${v.tipoRicevuta || ''}";"${v.numRiferimento || ''}";"${v.tipoPagamento || ''}";"${v.bottiglie || 0}";"${importoFormattato}"\n`;
       });
@@ -196,7 +382,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `registro_vendite_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", `registro_vendite_${document.getElementById('filter-month').value}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -292,9 +478,14 @@
         </form>
       </div>
 
-      <!-- BARRA SUPERIORE TABELLA CON TASTO EXCEL -->
+      <!-- BARRA SUPERIORE TABELLA CON FILTRO E TASTO EXCEL -->
       <div class="table-header-bar">
-        <strong style="font-size: 14px; color: #444;">Elenco Vendite Registrate</strong>
+        <div class="filter-group">
+          <span>Elenco Vendite:</span>
+          <select id="filter-month">
+            <option value="ALL">Tutti i mesi</option>
+          </select>
+        </div>
         <button id="export-btn" class="btn-export">📊 Esporta in Excel (.csv)</button>
       </div>
 
@@ -303,6 +494,7 @@
         <table>
           <thead>
             <tr>
+              <th style="text-align: center; width: 60px;">Pos.</th>
               <th>Data</th>
               <th>Operatore</th>
               <th>Tipo Ricevuta</th>
@@ -310,7 +502,7 @@
               <th>Tipo Pagamento</th>
               <th style="text-align: center;">Bottiglie</th>
               <th style="text-align: right;">Importo Totale</th>
-              <th style="text-align: center; width: 90px;">Azione</th>
+              <th style="text-align: center; width: 140px;">Azione</th>
             </tr>
           </thead>
           <tbody id="table-body">
@@ -319,6 +511,57 @@
         </table>
       </div>
     </main>
+  </div>
+
+  <!-- MODAL EDIT -->
+  <div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Modifica Registrazione</h3>
+      <form id="edit-form" class="modal-grid">
+        <input type="hidden" id="edit-id">
+        <div>
+          <label>Data</label>
+          <input type="date" id="edit-date" required>
+        </div>
+        <div>
+          <label>Operatore</label>
+          <input type="text" id="edit-operator" required>
+        </div>
+        <div>
+          <label>Tipo Ricevuta</label>
+          <select id="edit-receipt">
+            <option value="Ricevuta Fiscale">Ricevuta Fiscale</option>
+            <option value="Fattura">Fattura</option>
+            <option value="Buono di consegna">Buono di consegna</option>
+            <option value="Altro">Altro</option>
+          </select>
+        </div>
+        <div>
+          <label>N° / Riferimento</label>
+          <input type="text" id="edit-ref">
+        </div>
+        <div>
+          <label>Tipo Pagamento</label>
+          <select id="edit-payment">
+            <option value="Contanti">Contanti</option>
+            <option value="Elettronico">Elettronico</option>
+            <option value="Assegno">Assegno</option>
+          </select>
+        </div>
+        <div>
+          <label>N° Bottiglie</label>
+          <input type="number" id="edit-bottles" min="1" required>
+        </div>
+        <div>
+          <label>Importo (€)</label>
+          <input type="number" id="edit-amount" step="0.01" min="0" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-edit">Annulla</button>
+          <button type="submit" class="btn-save">Salva Modifiche</button>
+        </div>
+      </form>
+    </div>
   </div>
 
 </body>
