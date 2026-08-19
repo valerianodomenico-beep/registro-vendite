@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestione Vendite Shop Vino</title>
+  <title>Registro Vendite Shop</title>
   
   <style>
     * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -54,9 +54,9 @@
     .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
     .btn-edit { background: #2980b9; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; margin-right: 4px; }
     
-    /* Pulsanti Spostamento Visibili */
-    .move-btn-group { display: flex; gap: 4px; justify-content: center; }
-    .btn-move { background: #722f37; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: bold; transition: background 0.2s; }
+    /* Nuovi Pulsanti Spostamento Evidenti */
+    .move-btn-group { display: flex; gap: 6px; justify-content: center; }
+    .btn-move { background: #722f37; color: white; border: 1px solid #52222b; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
     .btn-move:hover { background: #52222b; }
 
     /* Modal Modifica */
@@ -95,13 +95,25 @@
     let elencoVenditeTutti = [];
     let elencoVenditeFiltrati = [];
 
-    const NOMI_MESI = ["genn", "febbr", "mar", "apr", "magg", "giu", "lug", "ago", "sett", "ott", "nov", "dic"];
+    const MESI_ITA = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
 
-    function formattaMeseItaliano(codiceMese) {
+    // Formatta la data YYYY-MM-DD in "19 ago 2026"
+    function formattaDataLeggibile(dataStr) {
+      if (!dataStr) return '';
+      const parti = dataStr.split('-');
+      if (parti.length !== 3) return dataStr;
+      const anno = parti[0];
+      const meseIndex = parseInt(parti[1], 10) - 1;
+      const giorno = parseInt(parti[2], 10);
+      return `${giorno} ${MESI_ITA[meseIndex]} ${anno}`;
+    }
+
+    // Formatta YYYY-MM per la tendina (es. "ago 2026")
+    function formattaMeseTendina(codiceMese) {
       if (!codiceMese || codiceMese === 'ALL') return 'Tutti i mesi';
       const [anno, meseStr] = codiceMese.split('-');
       const indiceMese = parseInt(meseStr, 10) - 1;
-      return `${NOMI_MESI[indiceMese]} ${anno}`;
+      return `${MESI_ITA[indiceMese]} ${anno}`;
     }
 
     onAuthStateChanged(auth, (user) => {
@@ -188,11 +200,36 @@
       mesiOrdinati.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m;
-        opt.innerText = formattaMeseItaliano(m);
+        opt.innerText = formattaMeseTendina(m);
         selectMese.appendChild(opt);
       });
 
       selectMese.value = meseCorrenteSel && (mesiSet.has(meseCorrenteSel) || meseCorrenteSel === 'ALL') ? meseCorrenteSel : 'ALL';
+    }
+
+    function generaRigaHTML(v, index) {
+      const dataVisualizzata = formattaDataLeggibile(v.data);
+      return `
+        <tr data-id="${v.id}">
+          <td style="text-align: center; width: 110px;">
+            <div class="move-btn-group">
+              <button class="btn-move btn-up" data-index="${index}">▲ Su</button>
+              <button class="btn-move btn-down" data-index="${index}">▼ Giù</button>
+            </div>
+          </td>
+          <td>${dataVisualizzata}</td>
+          <td>${v.operatore || ''}</td>
+          <td>${v.tipoRicevuta || ''}</td>
+          <td>${v.numRiferimento || ''}</td>
+          <td>${v.tipoPagamento || ''}</td>
+          <td style="text-align: center;">${v.bottiglie || 0}</td>
+          <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
+          <td style="text-align: center; width: 150px;">
+            <button class="btn-edit" data-id="${v.id}">✏️ Modifica</button>
+            <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
+          </td>
+        </tr>
+      `;
     }
 
     // Render Tabella
@@ -213,28 +250,7 @@
       elencoVenditeFiltrati.forEach((v, index) => {
         totIncassato += v.importo || 0;
         totBottiglie += v.bottiglie || 0;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="text-align: center; width: 100px;">
-            <div class="move-btn-group">
-              <button class="btn-move btn-up" data-index="${index}">▲ Su</button>
-              <button class="btn-move btn-down" data-index="${index}">▼ Giù</button>
-            </div>
-          </td>
-          <td>${v.data || ''}</td>
-          <td>${v.operatore || ''}</td>
-          <td>${v.tipoRicevuta || ''}</td>
-          <td>${v.numRiferimento || ''}</td>
-          <td>${v.tipoPagamento || ''}</td>
-          <td style="text-align: center;">${v.bottiglie || 0}</td>
-          <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
-          <td style="text-align: center; width: 150px;">
-            <button class="btn-edit" data-id="${v.id}">✏️ Modifica</button>
-            <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+        tbody.innerHTML += generaRigaHTML(v, index);
       });
 
       // KPI Update
@@ -282,27 +298,7 @@
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = '';
       elencoVenditeFiltrati.forEach((v, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="text-align: center; width: 100px;">
-            <div class="move-btn-group">
-              <button class="btn-move btn-up" data-index="${idx}">▲ Su</button>
-              <button class="btn-move btn-down" data-index="${idx}">▼ Giù</button>
-            </div>
-          </td>
-          <td>${v.data || ''}</td>
-          <td>${v.operatore || ''}</td>
-          <td>${v.tipoRicevuta || ''}</td>
-          <td>${v.numRiferimento || ''}</td>
-          <td>${v.tipoPagamento || ''}</td>
-          <td style="text-align: center;">${v.bottiglie || 0}</td>
-          <td style="text-align: right; font-weight: bold;">€ ${(v.importo || 0).toFixed(2)}</td>
-          <td style="text-align: center; width: 150px;">
-            <button class="btn-edit" data-id="${v.id}">✏️ Modifica</button>
-            <button class="btn-delete" data-id="${v.id}">🗑️ Elimina</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+        tbody.innerHTML += generaRigaHTML(v, idx);
       });
 
       bindEventiTabella();
@@ -360,7 +356,7 @@
       let csvContent = "\uFEFFData;Operatore;Tipo Ricevuta;N. Riferimento;Tipo Pagamento;Bottiglie;Importo (€)\n";
       elencoVenditeFiltrati.forEach(v => {
         const importoFormattato = (v.importo || 0).toString().replace('.', ',');
-        csvContent += `"${v.data || ''}";"${v.operatore || ''}";"${v.tipoRicevuta || ''}";"${v.numRiferimento || ''}";"${v.tipoPagamento || ''}";"${v.bottiglie || 0}";"${importoFormattato}"\n`;
+        csvContent += `"${formattaDataLeggibile(v.data)}";"${v.operatore || ''}";"${v.tipoRicevuta || ''}";"${v.numRiferimento || ''}";"${v.tipoPagamento || ''}";"${v.bottiglie || 0}";"${importoFormattato}"\n`;
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -479,7 +475,7 @@
         <table>
           <thead>
             <tr>
-              <th style="text-align: center; width: 100px;">Posizione</th>
+              <th style="text-align: center; width: 110px;">Posizione</th>
               <th>Data</th>
               <th>Operatore</th>
               <th>Tipo Ricevuta</th>
