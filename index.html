@@ -9,7 +9,7 @@
     .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     h2 { color: #2c3e50; margin-top: 0; text-align: center; }
     
-    /* Box Login Esatto dello Screenshot */
+    /* Schermata Login */
     #loginBox { max-width: 400px; margin: 80px auto; padding: 35px 30px; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; }
     #loginBox h2 { color: #1e3a5f; margin-bottom: 25px; font-weight: 700; }
     
@@ -22,11 +22,8 @@
     
     button { padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; }
     .btn-salva { background-color: #27ae60; color: white; width: 100%; }
-    .btn-edit { background-color: #f39c12; color: white; padding: 5px 10px; }
     .btn-delete { background-color: #e74c3c; color: white; padding: 5px 10px; }
-    .btn-move { background-color: #3498db; color: white; padding: 3px 8px; font-size: 0.8em; }
     
-    .filter-section { margin: 20px 0; background: #eef2f7; padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     th, td { border: 1px solid #e1e8ed; padding: 10px; text-align: left; }
     th { background-color: #2c3e50; color: white; }
@@ -38,25 +35,27 @@
 </head>
 <body>
 
-<!-- SCHERMATA LOGIN IDENTICA ALLO SCREENSHOT -->
+<!-- SCHERMATA LOGIN -->
 <div id="loginBox">
   <h2>Accesso Cassa</h2>
   
+  <div class="form-group">
+    <input type="email" id="loginEmail" value="valerianodomenico.beep@gmail.com" placeholder="Email">
+  </div>
   <div class="form-group">
     <input type="password" id="loginPassword" placeholder="Password" onkeypress="if(event.key === 'Enter') effettuaLogin()">
   </div>
   <button class="btn-login" onclick="effettuaLogin()">Sblocca Cassa</button>
 </div>
 
-<!-- CONTENUTO PRINCIPALE DELL'APP -->
+<!-- CONTENUTO APP -->
 <div class="container" id="appContent" style="display: none;">
   <div class="header-bar">
     <h2>Registro Vendite</h2>
     <button class="btn-logout" onclick="effettuaLogout()">Blocca Cassa</button>
   </div>
 
-  <!-- Form Inserimento / Modifica -->
-  <input type="hidden" id="docId">
+  <!-- Form Inserimento Vendita -->
   <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 10px;">
     <div>
       <label style="font-weight:600; font-size:0.85em;">Data:</label>
@@ -77,27 +76,17 @@
   </div>
   
   <br>
-  <button id="btnSalva" class="btn-salva" onclick="salvaVendita()">Aggiungi Vendita</button>
-  <button id="btnAnnulla" onclick="resetForm()" style="background-color: #7f8c8d; color: white; width:100%; margin-top:5px; display: none;">Annulla Modifica</button>
+  <button class="btn-salva" onclick="salvaVendita()">Aggiungi Vendita</button>
 
-  <!-- Filtro per Mese -->
-  <div class="filter-section">
-    <label for="filtroMese"><strong>Filtra per Mese:</strong></label>
-    <select id="filtroMese" onchange="renderTabella()">
-      <option value="tutti">Tutti i mesi</option>
-    </select>
-  </div>
-
-  <!-- Tabella Dati -->
+  <!-- Tabella Vendite -->
   <table>
     <thead>
       <tr>
-        <th style="width: 70px;">Ordine</th>
         <th>Data</th>
         <th>Prodotto</th>
         <th>Qtà</th>
         <th>Totale (€)</th>
-        <th style="width: 140px;">Azioni</th>
+        <th style="width: 80px;">Azione</th>
       </tr>
     </thead>
     <tbody id="tabellaCorpo">
@@ -110,7 +99,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCbNGUmM2nICS_D30b6XZ4WouFHr-AEItY",
@@ -125,9 +114,6 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
   const listaVendite = collection(db, "vendite");
-
-  const EMAIL_UTENTE = "valerianodomenico.beep@gmail.com";
-  let venditeLocali = [];
 
   document.getElementById("dataVendita").valueAsDate = new Date();
 
@@ -144,16 +130,18 @@
   });
 
   window.effettuaLogin = async function() {
+    const email = document.getElementById("loginEmail").value;
     const password = document.getElementById("loginPassword").value;
-    if (!password) {
-      alert("Inserisci la password!");
+
+    if (!email || !password) {
+      alert("Inserisci email e password!");
       return;
     }
 
     try {
-      await signInWithEmailAndPassword(auth, EMAIL_UTENTE, password);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      alert("Password errata.");
+      alert("Credenziali errate.");
     }
   };
 
@@ -162,109 +150,47 @@
   };
 
   window.salvaVendita = async function() {
-    const id = document.getElementById("docId").value;
     const data = document.getElementById("dataVendita").value;
     const prodotto = document.getElementById("prodotto").value;
     const quantita = Number(document.getElementById("quantita").value);
     const prezzo = Number(document.getElementById("prezzo").value);
 
     if (!data || !prodotto) {
-      alert("Compila tutti i campi obbligatori!");
+      alert("Compila i campi obbligatori!");
       return;
     }
 
-    if (id) {
-      await updateDoc(doc(db, "vendite", id), { data, prodotto, quantita, prezzo });
-    } else {
-      const ordine = venditeLocali.length + 1;
-      await addDoc(listaVendite, { data, prodotto, quantita, prezzo, ordine, timestamp: new Date() });
-    }
+    await addDoc(listaVendite, { data, prodotto, quantita, prezzo, timestamp: new Date() });
 
-    resetForm();
+    document.getElementById("prodotto").value = "";
+    document.getElementById("quantita").value = "";
+    document.getElementById("prezzo").value = "";
+    document.getElementById("dataVendita").valueAsDate = new Date();
+
     caricaVendite();
   };
 
   window.caricaVendite = async function() {
-    const q = query(listaVendite, orderBy("ordine", "asc"));
+    const q = query(listaVendite, orderBy("timestamp", "desc"));
     const snapshot = await getDocs(q);
-    venditeLocali = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    popolaSelezionaMesi(venditeLocali);
-    renderTabella();
-  };
-
-  function popolaSelezionaMesi(dati) {
-    const select = document.getElementById("filtroMese");
-    const valoreCorrente = select.value;
-    const mesiSet = new Set();
-
-    dati.forEach(v => {
-      if (v.data) {
-        const meseAnno = v.data.substring(0, 7);
-        mesiSet.add(meseAnno);
-      }
-    });
-
-    select.innerHTML = '<option value="tutti">Tutti i mesi</option>';
-    Array.from(mesiSet).sort().reverse().forEach(m => {
-      const option = document.createElement("option");
-      option.value = m;
-      option.textContent = m;
-      if (m === valoreCorrente) option.selected = true;
-      select.appendChild(option);
-    });
-  }
-
-  window.renderTabella = function() {
     const tbody = document.getElementById("tabellaCorpo");
-    const filtro = document.getElementById("filtroMese").value;
     tbody.innerHTML = "";
 
-    const datiFiltrati = venditeLocali.filter(v => filtro === "tutti" || (v.data && v.data.startsWith(filtro)));
-
-    datiFiltrati.forEach((v) => {
+    snapshot.docs.forEach((docSnapshot) => {
+      const v = docSnapshot.data();
+      const id = docSnapshot.id;
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>
-          <button class="btn-move" onclick="sposta('${v.id}', -1)">▲</button>
-          <button class="btn-move" onclick="sposta('${v.id}', 1)">▼</button>
-        </td>
         <td>${v.data}</td>
         <td>${v.prodotto}</td>
         <td>${v.quantita}</td>
         <td>€ ${v.prezzo ? Number(v.prezzo).toFixed(2) : '0.00'}</td>
         <td>
-          <button class="btn-edit" onclick="preparaModifica('${v.id}')">✏️</button>
-          <button class="btn-delete" onclick="elimina('${v.id}')">🗑️</button>
+          <button class="btn-delete" onclick="elimina('${id}')">🗑️</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
-  };
-
-  window.preparaModifica = function(id) {
-    const v = venditeLocali.find(item => item.id === id);
-    if (!v) return;
-
-    document.getElementById("docId").value = v.id;
-    document.getElementById("dataVendita").value = v.data;
-    document.getElementById("prodotto").value = v.prodotto;
-    document.getElementById("quantita").value = v.quantita;
-    document.getElementById("prezzo").value = v.prezzo;
-
-    document.getElementById("btnSalva").textContent = "Salva Modifiche";
-    document.getElementById("btnAnnulla").style.display = "inline-block";
-  };
-
-  window.resetForm = function() {
-    document.getElementById("docId").value = "";
-    document.getElementById("dataVendita").valueAsDate = new Date();
-    document.getElementById("prodotto").value = "";
-    document.getElementById("quantita").value = "";
-    document.getElementById("prezzo").value = "";
-
-    document.getElementById("btnSalva").textContent = "Aggiungi Vendita";
-    document.getElementById("btnAnnulla").style.display = "none";
   };
 
   window.elimina = async function(id) {
@@ -272,25 +198,6 @@
       await deleteDoc(doc(db, "vendite", id));
       caricaVendite();
     }
-  };
-
-  window.sposta = async function(id, direzione) {
-    const idx = venditeLocali.findIndex(v => v.id === id);
-    const targetIdx = idx + direzione;
-
-    if (targetIdx < 0 || targetIdx >= venditeLocali.length) return;
-
-    const attuale = venditeLocali[idx];
-    const destinazione = venditeLocali[targetIdx];
-
-    const tempOrdine = attuale.ordine || idx + 1;
-    attuale.ordine = destinazione.ordine || targetIdx + 1;
-    destinazione.ordine = tempOrdine;
-
-    await updateDoc(doc(db, "vendite", attuale.id), { ordine: attuale.ordine });
-    await updateDoc(doc(db, "vendite", destinazione.id), { ordine: destinazione.ordine });
-
-    caricaVendite();
   };
 </script>
 
